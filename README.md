@@ -1,26 +1,30 @@
-# Install OpenShift AI with GPU AutoScaling on OpenShift 4.17
+# OpenShift AI with GPU AutoScaling on OpenShift
 
-- [Install OpenShift AI with GPU AutoScaling on OpenShift 4.17](#install-openshift-ai-with-gpu-autoscaling-on-openshift-417)
-  - [Install OpenShift](#install-openshift)
-  - [Create an Identity Provider](#create-an-identity-provider)
-  - [Install Operators](#install-operators)
-  - [Configure Operators](#configure-operators)
-    - [Node Discovery Operator](#node-discovery-operator)
-    - [NVIDIA GPU Operator](#nvidia-gpu-operator)
-    - [All Other Operators](#all-other-operators)
-  - [Create a GPU machineset](#create-a-gpu-machineset)
-  - [Configure GPU Node Autoscaling](#configure-gpu-node-autoscaling)
-  - [Upload Models to S3](#upload-models-to-s3)
-  - [Configure OpenShift AI](#configure-openshift-ai)
-  - [Adjust the ServingRuntime](#adjust-the-servingruntime)
-  - [Add a Data connection](#add-a-data-connection)
-  - [Deploy a Model](#deploy-a-model)
-  - [Access Model](#access-model)
-  - [Optional steps](#optional-steps)
+- [OpenShift AI with GPU AutoScaling on OpenShift](#openshift-ai-with-gpu-autoscaling-on-openshift)
+  - [Installation](#installation)
+    - [Install OpenShift](#install-openshift)
+    - [Create an Identity Provider](#create-an-identity-provider)
+    - [Install Operators](#install-operators)
+    - [Configure Operators](#configure-operators)
+      - [Node Discovery Operator](#node-discovery-operator)
+      - [NVIDIA GPU Operator](#nvidia-gpu-operator)
+      - [All Other Operators](#all-other-operators)
+    - [Create a GPU machineset](#create-a-gpu-machineset)
+    - [Configure GPU Node Autoscaling](#configure-gpu-node-autoscaling)
+    - [Configure OpenShift AI](#configure-openshift-ai)
+    - [Adjust the ServingRuntime](#adjust-the-servingruntime)
+  - [Usage](#usage)
+    - [Upload Models to S3](#upload-models-to-s3)
+    - [Add a Data connection](#add-a-data-connection)
+    - [Deploy a Model](#deploy-a-model)
+    - [Access Model](#access-model)
+  - [Optional Configuration](#optional-configuration)
     - [Monitoring](#monitoring)
     - [Alerting](#alerting)
 
-## Install OpenShift
+## Installation
+
+### Install OpenShift
 In the past I have experienced issues with the number of operators and related workloads running causing a strain on master nodes due to memory usage. Consider using m6i.2xlarge nodes, at least for master. The easiest way to do this is to use an `install-config.yaml` for `openshift-install`.
 
 - Download the openshift-install binary appropriate for your system from the [mirror](https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-4.17/) and extract it.
@@ -67,7 +71,7 @@ sshKey: |
 ```
 - Run `./openshift-install create cluster` and allow the install to finish.
 
-## Create an Identity Provider
+### Create an Identity Provider
 OpenShift AI does not provide access to all resource when using the `kube:admin` account, so you need to set up an Identity Provider
 
 You can either set this up using your preferred method, or follow this example using HTPasswd:
@@ -99,7 +103,7 @@ EOF
 
 ![htpasswd login](images/htpasswd-login.png)
 
-## Install Operators
+### Install Operators
 Do not configure any of these at this time.
 OpenShift AI will configure most of them for us later, and those that require manual installation will be covered in the next section.
 
@@ -113,22 +117,22 @@ OpenShift AI will configure most of them for us later, and those that require ma
 
 ![installed operators](images/installed-operators.png)
 
-## Configure Operators
+### Configure Operators
 
-### Node Discovery Operator
+#### Node Discovery Operator
 - Navigate to `Operators`, `Installed Operators`, and select `Node Feature Discovery Operator`.
 - Select the `NodeFeatureDiscovery` tab and click `Create a NodeFeatureDiscovery`
 - Accept the Defaults and click `Create`
 
-### NVIDIA GPU Operator
+#### NVIDIA GPU Operator
 - Navigate to `Operators`, `Installed Operators`, and select `NVIDIA GPU Operator`.
 - Select the `ClusterPolicy` tab and click `Create a ClusterPolicy`
 - Accept the Defaults and click `Create`
 
-### All Other Operators
+#### All Other Operators
 - All other operators will be configured by OpenShift AI
 
-## Create a GPU machineset
+### Create a GPU machineset
 - Replace `CLUSTER_NAME`, `CLUSTER_ID`, `AVAILABILITY_ZONE`, and `REGION` with valid values.
 - These can be found by looking at existing machinesets in your cluster (`oc get machineset -n openshift-machine-api`).
 - You may also optionally adjust the `instanceType`, `cluster-api/accelerator`, and related resource values.
@@ -216,7 +220,7 @@ EOF
 - Watch the machineset, machine, and node resource for hints that anything is wrong.
   - `watch 'oc get machineset -n openshift-machine-api && oc get machines -n openshift-machine-api && oc get nodes'`
 
-## Configure GPU Node Autoscaling
+### Configure GPU Node Autoscaling
 - Adjust values if desired and create the `autoscaler.yml`
 ```
 cat << EOF > clusterautoscaler.yml
@@ -264,20 +268,7 @@ EOF
 - `oc create -f machineautoscaler.yml`
 - `oc create -f clusterautoscaler.yml`
 
-## Upload Models to S3
-OpenShift AI accesses models from S3 storage so you need to create a bucket either in AWS S3 or elsewhere.
-- Models can be cloned from Hugging Face with git, for example `git clone https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3`
-- If prompted for a username you may use your email address and access token created from within your Hugging Face account. Some models require requesting access before accessing them. In my experience it usually takes less than an hour for access to be granted after requesting it.
-- Before syncing the repo to S3 I suggest deleting the `.git` directory. It is not desired and can cause unnecessary delays uploading and launching models.
-- Sync the model, for example `aws s3 sync Mistral-7B-Instruct-v0.3 s3://my-bucket/Mistral-7B-Instruct-v0.3`
-
-- To speed up uploads to S3 you may wish to clone models into a container in the cluster.
-  - oc run --image=quay.io/fedora/fedora:latest --command=true download sleep infinity
-  - oc exec -it --entrypoint /bin/bash download
-  - `dnf -y install git git-lfs awscli2`
-  - Proceed normally and when done `oc delete po download`
-
-## Configure OpenShift AI
+### Configure OpenShift AI
 - Navigate to Operators, Installed Operators, and select Red Hat OpenShift AI.
 - Select the Data Scient Cluster tab and click Create a DataScienceCluster
 - Accept the Defaults and click Create
@@ -285,7 +276,7 @@ OpenShift AI accesses models from S3 storage so you need to create a bucket eith
 When installation is done we can now access OpenShift AI from the Application menu in the top right
 ![app menu](images/app-menu.png)
 
-## Adjust the ServingRuntime
+### Adjust the ServingRuntime
 - On the left menu navigate to Settings, Serving runtimes, click on the kebab menu for `vLLM ServingRuntime for KServe` and select `Duplicate serving runtime`.
 - Give it a name like `Custom vLLM ServingRuntime for KServe`
 - Scaling a node, and pulling large images to serve the model takes several minutes.
@@ -314,7 +305,22 @@ spec:
 
 ![serving runtime](images/serving-runtime.png)
 
-## Add a Data connection
+## Usage
+
+### Upload Models to S3
+OpenShift AI accesses models from S3 storage so you need to create a bucket either in AWS S3 or elsewhere.
+- Models can be cloned from Hugging Face with git, for example `git clone https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3`
+- If prompted for a username you may use your email address and access token created from within your Hugging Face account. Some models require requesting access before accessing them. In my experience it usually takes less than an hour for access to be granted after requesting it.
+- Before syncing the repo to S3 I suggest deleting the `.git` directory. It is not desired and can cause unnecessary delays uploading and launching models.
+- Sync the model, for example `aws s3 sync Mistral-7B-Instruct-v0.3 s3://my-bucket/Mistral-7B-Instruct-v0.3`
+
+- To speed up uploads to S3 you may wish to clone models into a container in the cluster.
+  - oc run --image=quay.io/fedora/fedora:latest --command=true download sleep infinity
+  - oc exec -it --entrypoint /bin/bash download
+  - `dnf -y install git git-lfs awscli2`
+  - Proceed normally and when done `oc delete po download`
+
+### Add a Data connection
 - Navigate to Data Science Projects on the left menu
 - Click `Create data science project` and give it a name
 - On the next page select `Data connections` on the top menu
@@ -324,7 +330,7 @@ spec:
 
 ![add a data connection](images/data-connection.png)
 
-## Deploy a Model
+### Deploy a Model
 Before starting lets scale down our gpu node to test the full flow.
 Run `oc scale machineset -n openshift-machine-api CLUSTER_NAME-CLUSTER_ID-gpu-AVAILABILITY_ZONE --replicas=0` and let the node scale down completely before proceeding.
 
@@ -344,7 +350,7 @@ Run `oc scale machineset -n openshift-machine-api CLUSTER_NAME-CLUSTER_ID-gpu-AV
 
 ![deploy a model](images/deploy-model.png)
 
-## Access Model
+### Access Model
 On the models page an endpoint and token will be provided for your model once it is provisioned.
 - Note that depending on how you enter the name of the model it may be converted to an [RFC compliant name](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names). For instance in the example above I entered the name `Mistral-7B-Instruct-v0.3` which was converted to `mistral-7b-instruct-v03`. The `/v1/models` endpoint can be used to display the name you should use if in doubt.
 - Models are served over an OpenAI compatible API. A simple curl example of accessing the model follows:
@@ -354,7 +360,7 @@ export TOKEN=PROVIDED_TOKEN
 curl -k -H "Authorization: Bearer $TOKEN"  -H "Content-Type: application/json" -d '{"model": "mistral-7b-instruct-v03", "prompt": "Write a hello world program in python", "max_tokens": 100, "temperature": 0.01 }' ${ENDPOINT}/v1/completions
 ```
 
-## Optional steps
+## Optional Configuration
 
 ### Monitoring
 - Configure Monitoring Storage
