@@ -309,7 +309,7 @@ spec:
 
 ### Upload Models to S3
 OpenShift AI accesses models from S3 storage so you need to create a bucket either in AWS S3 or elsewhere.
-- Models can be downloading using `huggingface-cli` for example `huggingface-cli download ibm-granite/granite-3.0-8b-instruct`
+- Models can be downloading using `huggingface-cli` for example `huggingface-cli download ibm-granite/granite-3.0-8b-instruct --local-dir /some/local/path`
 - Some models require requesting access before accessing them. In my experience it usually takes less than an hour for access to be granted after requesting it.
 - To download these models you will need to run `huggingface-cli login` and provide the access token created from within your Hugging Face account.
 - Sync the model, for example `aws s3 sync Mistral-7B-Instruct-v0.3 s3://my-bucket/Mistral-7B-Instruct-v0.3`
