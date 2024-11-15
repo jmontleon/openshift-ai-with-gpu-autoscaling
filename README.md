@@ -309,15 +309,15 @@ spec:
 
 ### Upload Models to S3
 OpenShift AI accesses models from S3 storage so you need to create a bucket either in AWS S3 or elsewhere.
-- Models can be cloned from Hugging Face with git, for example `git clone https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3`
-- If prompted for a username you may use your email address and access token created from within your Hugging Face account. Some models require requesting access before accessing them. In my experience it usually takes less than an hour for access to be granted after requesting it.
-- Before syncing the repo to S3 I suggest deleting the `.git` directory. It is not desired and can cause unnecessary delays uploading and launching models.
+- Models can be downloading using `huggingface-cli` for example `huggingface-cli download ibm-granite/granite-3.0-8b-instruct`
+- Some models require requesting access before accessing them. In my experience it usually takes less than an hour for access to be granted after requesting it.
+- To download these models you will need to run `huggingface-cli login` and provide the access token created from within your Hugging Face account.
 - Sync the model, for example `aws s3 sync Mistral-7B-Instruct-v0.3 s3://my-bucket/Mistral-7B-Instruct-v0.3`
 
 - To speed up uploads to S3 you may wish to clone models into a container in the cluster.
   - oc run --image=quay.io/fedora/fedora:latest --command=true download sleep infinity
   - oc exec -it --entrypoint /bin/bash download
-  - `dnf -y install git git-lfs awscli2`
+  - `dnf -y install python3-huggingface-hub awscli2`
   - Proceed normally and when done `oc delete po download`
 
 ### Add a Data connection
