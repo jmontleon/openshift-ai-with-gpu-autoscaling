@@ -178,7 +178,7 @@ spec:
           - ebs:
               iops: 0
               kmsKey: {}
-              volumeSize: 120
+              volumeSize: 240
               volumeType: gp2
           credentialsSecret:
             name: aws-cloud-credentials
