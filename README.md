@@ -19,6 +19,7 @@
     - [Deploy a Model](#deploy-a-model)
     - [Access Model](#access-model)
   - [Optional Configuration](#optional-configuration)
+    - [Ephemeral Storage](#ephemeral-storage)
     - [Monitoring](#monitoring)
     - [Alerting](#alerting)
 
@@ -361,6 +362,95 @@ curl -k -H "Authorization: Bearer $TOKEN"  -H "Content-Type: application/json" -
 ```
 
 ## Optional Configuration
+
+### Ephemeral Storage
+- By default nodes use a 120GB disk for all mounts. Large models can end up consuming all storage on the node, causing them to fail to launch. To work around this you can move mount storage on a secondary disk:
+- Create a MachineConfigPool
+```
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: gpu
+spec:
+  machineConfigSelector:
+    matchExpressions:
+      - {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,gpu]}
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/gpu: ""
+```
+- Create a MachineConfig
+```
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: gpu
+  name: 98-var-lib-containers
+spec:
+  config:
+    ignition:
+      version: 3.4.0
+    storage:
+      files:
+        - path: /etc/find-secondary-device
+          mode: 0755
+          contents:
+            source: data:text/plain;charset=utf-8;base64,IyEvYmluL2Jhc2gKc2V0IC11byBwaXBlZmFpbAoKZm9yIGRldmljZSBpbiAvZGV2L252bWVbMC05XW4qOyBkbyAKL3Vzci9zYmluL2Jsa2lkICIke2RldmljZX0iICY+IC9kZXYvbnVsbAogaWYgWyAkPyA9PSAyICBdOyB0aGVuCiAgICBlY2hvICJzZWNvbmRhcnkgZGV2aWNlIGZvdW5kICR7ZGV2aWNlfSIKICAgIGVjaG8gImNyZWF0aW5nIGZpbGVzeXN0ZW0gZm9yIGNvbnRhaW5lcnMgbW91bnQiCiAgICBta2ZzLnhmcyAtTCB2YXItbGliLWNvbnQgLWYgIiR7ZGV2aWNlfSIgJj4gL2Rldi9udWxsCiAgICB1ZGV2YWRtIHNldHRsZQogICAgdG91Y2ggL2V0Yy92YXItbGliLWNvbnRhaW5lcnMtbW91bnQKICAgIGV4aXQKIGZpCmRvbmUKZWNobyAiQ291bGRuJ3QgZmluZCBzZWNvbmRhcnkgYmxvY2sgZGV2aWNlISIgPiYyCmV4aXQgNzcK
+    systemd:
+      units:
+        - name: find-secondary-device.service
+          enabled: true
+          contents: |
+            [Unit]
+            Description=Find secondary device
+            DefaultDependencies=false
+            After=systemd-udev-settle.service
+            Before=local-fs-pre.target
+            ConditionPathExists=!/etc/var-lib-containers-mount
+
+            [Service]
+            RemainAfterExit=yes
+            ExecStart=/etc/find-secondary-device
+
+            RestartForceExitStatus=77
+
+            [Install]
+            WantedBy=multi-user.target
+        - name: var-lib-containers.mount
+          enabled: true
+          contents: |
+            [Unit]
+            Description=Mount /var/lib/containers
+            Before=local-fs.target
+
+            [Mount]
+            What=/dev/disk/by-label/var-lib-cont
+            Where=/var/lib/containers
+            Type=xfs
+            TimeoutSec=120s
+
+            [Install]
+            RequiredBy=local-fs.target
+        - name: restorecon-var-lib-containers.service
+          enabled: true
+          contents: |
+            [Unit]
+            Description=Restore recursive SELinux security contexts
+            DefaultDependencies=no
+            After=var-lib-containers.mount
+            Before=crio.service
+
+            [Service]
+            Type=oneshot
+            RemainAfterExit=yes
+            ExecStart=/sbin/restorecon -R /var/lib/containers/
+            TimeoutSec=0
+
+            [Install]
+            WantedBy=multi-user.target graphical.target
+```
+- https://access.redhat.com/solutions/4952011 contains additional information
 
 ### Monitoring
 - Configure Monitoring Storage
