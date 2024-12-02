@@ -13,6 +13,7 @@
     - [Configure GPU Node Autoscaling](#configure-gpu-node-autoscaling)
     - [Configure OpenShift AI](#configure-openshift-ai)
     - [Adjust the ServingRuntime](#adjust-the-servingruntime)
+    - [Create an accelator profile](#create-an-accelator-profile)
   - [Usage](#usage)
     - [Upload Models to S3](#upload-models-to-s3)
     - [Add a Data connection](#add-a-data-connection)
@@ -278,7 +279,7 @@ When installation is done we can now access OpenShift AI from the Application me
 
 ### Adjust the ServingRuntime
 - On the left menu navigate to Settings, Serving runtimes, click on the kebab menu for `vLLM ServingRuntime for KServe` and select `Duplicate serving runtime`.
-- Give it a name like `Custom vLLM ServingRuntime for KServe`
+- Give it a name like ` vLLM (2.16 8x GPU) ServingRuntime for KServe`
 - Scaling a node, and pulling large images to serve the model takes several minutes.
   - The default deadline is 10 minutes.
   - If the deployment is not ready in this amount of time it will be considered failed/
@@ -298,13 +299,25 @@ spec:
         - --model=/mnt/models
         - --served-model-name={{.Name}}
         - --distributed-executor-backend=mp
-        - --enforce-eager
-        - --max-model-len
-        - "16384"
+        - --tensor-parallel-size=8
 ```
-
+- Finally, at the time this was written the OpenShift AI stable version is 2.13.
+- The version of vLLM in this version does not support Granite models, but we can specify a newer (in this case 2.16 image).
+```
+      image: quay.io/modh/vllm@sha256:c86ff1e89c86bc9821b75d7f2bbc170b3c13e3ccf538bf543b1110f23e056316
+```
 ![serving runtime](images/serving-runtime.png)
 
+### Create an accelator profile
+If you had a GPU node running when you configured OpenShift AI this should not be necessary.
+
+- Navigate to `Settings > Accelerator Profiles` on the OpenShift AI menu
+- Click `Create accelerator profile`
+- Name it `NVIDIA GPU`
+- Give it the identifier `nvidia.com/gpu`
+- Set up a toleration with the settings `Operator`: `Exists` 'Key`: `nvidia.com/gpu` and `Effect`: `NoSchedule`
+- `Value` can be left empty
+- Click `Add`, then 'Create accelerator profile`
 ## Usage
 
 ### Upload Models to S3
