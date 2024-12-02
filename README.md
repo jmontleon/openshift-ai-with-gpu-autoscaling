@@ -315,9 +315,9 @@ If you had a GPU node running when you configured OpenShift AI this should not b
 - Click `Create accelerator profile`
 - Name it `NVIDIA GPU`
 - Give it the identifier `nvidia.com/gpu`
-- Set up a toleration with the settings `Operator`: `Exists` 'Key`: `nvidia.com/gpu` and `Effect`: `NoSchedule`
+- Set up a toleration with the settings `Operator`: `Exists`, `Key`: `nvidia.com/gpu`, and `Effect`: `NoSchedule`
 - `Value` can be left empty
-- Click `Add`, then 'Create accelerator profile`
+- Click `Add`, then `Create accelerator profile`
 ## Usage
 
 ### Upload Models to S3
