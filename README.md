@@ -325,7 +325,7 @@ OpenShift AI accesses models from S3 storage so you need to create a bucket eith
 
 - To speed up uploads to S3 you may wish to clone models into a container in the cluster.
   - `oc run --image=quay.io/fedora/fedora:latest --command=true download sleep infinity`
-  - `oc exec -it --entrypoint /bin/bash download`
+  - `oc exec -it download -- /bin/bash`
   - `dnf -y install python3-huggingface-hub awscli2`
   - Proceed normally and when done `oc delete po download`
 
