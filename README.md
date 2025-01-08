@@ -301,11 +301,7 @@ spec:
         - --distributed-executor-backend=mp
         - --tensor-parallel-size=8
 ```
-- Finally, at the time this was written the OpenShift AI stable version is 2.13.
-- The version of vLLM in this version does not support Granite models, but we can specify a newer (in this case 2.16 image).
-```
-      image: quay.io/modh/vllm@sha256:c86ff1e89c86bc9821b75d7f2bbc170b3c13e3ccf538bf543b1110f23e056316
-```
+
 ![serving runtime](images/serving-runtime.png)
 
 ### Create an accelator profile
@@ -328,8 +324,8 @@ OpenShift AI accesses models from S3 storage so you need to create a bucket eith
 - Sync the model, for example `aws s3 sync Mistral-7B-Instruct-v0.3 s3://my-bucket/Mistral-7B-Instruct-v0.3`
 
 - To speed up uploads to S3 you may wish to clone models into a container in the cluster.
-  - oc run --image=quay.io/fedora/fedora:latest --command=true download sleep infinity
-  - oc exec -it --entrypoint /bin/bash download
+  - `oc run --image=quay.io/fedora/fedora:latest --command=true download sleep infinity`
+  - `oc exec -it --entrypoint /bin/bash download`
   - `dnf -y install python3-huggingface-hub awscli2`
   - Proceed normally and when done `oc delete po download`
 
