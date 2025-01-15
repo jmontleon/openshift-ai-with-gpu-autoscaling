@@ -19,6 +19,8 @@
     - [Add a Data connection](#add-a-data-connection)
     - [Deploy a Model](#deploy-a-model)
     - [Access Model](#access-model)
+    - [Simplifying CLI model deployment](#simplifying-cli-model-deployment)
+    - [CLI model deployment](#cli-model-deployment)
   - [Optional Configuration](#optional-configuration)
     - [Monitoring](#monitoring)
     - [Alerting](#alerting)
