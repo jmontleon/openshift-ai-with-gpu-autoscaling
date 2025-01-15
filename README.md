@@ -369,6 +369,218 @@ export TOKEN=PROVIDED_TOKEN
 curl -k -H "Authorization: Bearer $TOKEN"  -H "Content-Type: application/json" -d '{"model": "mistral-7b-instruct-v03", "prompt": "Write a hello world program in python", "max_tokens": 100, "temperature": 0.01 }' ${ENDPOINT}/v1/completions
 ```
 
+### Simplifying CLI model deployment
+It is possible to create a template that will simplify model deployment on the CLI
+
+```
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: deploy-model
+  namespace: llms
+objects:
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: ${SERVING_NAME}-sa
+    namespace: ${NAMESPACE}
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    labels:
+      opendatahub.io/dashboard: "true"
+    name: ${SERVING_NAME}-view-role
+    namespace: ${NAMESPACE}
+  rules:
+  - apiGroups:
+    - serving.kserve.io
+    resourceNames:
+    - ${SERVING_NAME}
+    resources:
+    - inferenceservices
+    verbs:
+    - get
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      opendatahub.io/dashboard: "true"
+    name: ${SERVING_NAME}-view
+    namespace: ${NAMESPACE}
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: ${SERVING_NAME}-view-role
+  subjects:
+  - kind: ServiceAccount
+    name: ${SERVING_NAME}-sa
+- apiVersion: serving.kserve.io/v1alpha1
+  kind: ServingRuntime
+  metadata:
+    annotations:
+      opendatahub.io/accelerator-name: migrated-gpu
+      opendatahub.io/apiProtocol: REST
+      opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+      opendatahub.io/template-display-name: vLLM ServingRuntime for KServe
+      opendatahub.io/template-name: vllm-runtime-216-8x
+      openshift.io/display-name: ${SERVING_NAME}
+    labels:
+      opendatahub.io/dashboard: "true"
+    name: ${SERVING_NAME}
+    namespace: ${NAMESPACE}
+  spec:
+    annotations:
+      prometheus.io/path: /metrics
+      prometheus.io/port: "8080"
+      serving.knative.dev/progress-deadline: 45m
+    containers:
+    - args:
+      - --port=8080
+      - --model=/mnt/models
+      - --served-model-name={{.Name}}
+      - --distributed-executor-backend=mp
+      - --tensor-parallel-size=${GPU_COUNT}
+      command:
+      - python
+      - -m
+      - vllm.entrypoints.openai.api_server
+      env:
+      - name: HF_HOME
+        value: /tmp/hf_home
+      image: quay.io/modh/vllm@sha256:c86ff1e89c86bc9821b75d7f2bbc170b3c13e3ccf538bf543b1110f23e056316
+      name: kserve-container
+      ports:
+      - containerPort: 8080
+        protocol: TCP
+      volumeMounts:
+      - mountPath: /dev/shm
+        name: shm
+    multiModel: false
+    supportedModelFormats:
+    - autoSelect: true
+      name: vLLM
+    volumes:
+    - emptyDir:
+        medium: Memory
+        sizeLimit: 2Gi
+      name: shm
+- apiVersion: serving.kserve.io/v1beta1
+  kind: InferenceService
+  metadata:
+    annotations:
+      openshift.io/display-name: ${SERVING_NAME}
+      security.opendatahub.io/enable-auth: "true"
+      serving.knative.openshift.io/enablePassthrough: "true"
+      sidecar.istio.io/inject: "true"
+      sidecar.istio.io/rewriteAppHTTPProbers: "true"
+    finalizers:
+    - inferenceservice.finalizers
+    labels:
+      opendatahub.io/dashboard: "true"
+    name: ${SERVING_NAME}
+    namespace: ${NAMESPACE}
+  spec:
+    predictor:
+      maxReplicas: 1
+      minReplicas: 1
+      model:
+        modelFormat:
+          name: vLLM
+        name: ""
+        resources:
+          limits:
+            cpu: "${CPU_COUNT}"
+            memory: ${RAM}Gi
+            nvidia.com/gpu: "${GPU_COUNT}"
+          requests:
+            cpu: "${CPU_COUNT}"
+            memory: ${RAM}Gi
+            nvidia.com/gpu: "${GPU_COUNT}"
+        runtime: ${SERVING_NAME}
+        storage:
+          key: ${STORAGE}
+          path: ${MODEL_PATH}
+      tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists
+parameters:
+  - name: SERVING_NAME
+    displayName: Serving Name
+    description: The Inference Service name
+    value: llama-31-8b-instruct
+    required: true
+  - name: NAMESPACE
+    displayName: Namespace
+    description: Namespace to deploy the inference service in
+    value: llms
+    required: true
+  - name: GPU_COUNT
+    displayName: GPU Count
+    description: Number of GPUs to use when serving this model
+    value: "8"
+    required: true
+  - name: CPU_COUNT
+    displayName: CPU Count
+    description: CPU count for Request and Limit
+    value: "100"
+    required: true
+  - name: RAM
+    displayName: RAM
+    description: Memory in Gi for Request and Limit
+    value: "100"
+    required: true
+  - name: STORAGE
+    displayName: Storage
+    description: S3 (data) connection to use for loading the model
+    value: llms
+    required: true
+  - name: MODEL_PATH
+    displayName: Model Path
+    description: Path to model on storage 
+    value: Llama-3.1-8B-Instruct
+    required: true
+```
+
+This template allows for customizing several settings
+```
+$ oc process deploy-model --parameters
+NAME                DESCRIPTION                                         GENERATOR           VALUE
+SERVING_NAME        The Inference Service name                                              llama-31-8b-instruct
+NAMESPACE           Namespace to deploy the inference service in                            llms
+GPU_COUNT           Number of GPUs to use when serving this model                           8
+CPU_COUNT           CPU count for Request and Limit                                         100
+RAM                 Memory in Gi for Request and Limit                                      100
+STORAGE             S3 (data) connection to use for loading the model                       llms
+MODEL_PATH          Path to model on storage                                                Llama-3.1-8B-Instruct
+```
+
+### CLI model deployment
+In the example above we have an s3 bucket called `llms`
+
+Now deploying a model is as simple as:
+```
+oc process deploy-model -p SERVING_NAME=foo -p MODEL_PATH=Llama-3.1-8B-Instruct | oc create -f -
+```
+
+To simplify accessing the model you can export several variables after the model is Ready:
+```
+export SERVING_NAME=foo
+export NAMESPACE=llms
+export TOKEN=$(oc create token --duration=87600h -n ${NAMESPACE} ${SERVING_NAME}-sa)
+export ENDPOINT=https://$(oc get route -n istio-system ${SERVING_NAME}-${NAMESPACE} -o go-template='{{ .spec.host }}')
+# For openai / langchain / kai the following are helpful:
+curl -k -w %{certs} $ENDPOINT > ca-cert.pem
+export SSL_CERT_FILE=ca-cert.pem
+export REQUESTS_CA_BUNDLE=ca-cert.pem
+export OPENAI_API_BASE="$ENDPOINT/v1"
+```
+
+And to clean up and scale down:
+```
+oc process deploy-model -p SERVING_NAME=foo -p MODEL_PATH=Llama-3.1-8B-Instruct | oc delete -f -
+```
+
 ## Optional Configuration
 
 ### Monitoring
