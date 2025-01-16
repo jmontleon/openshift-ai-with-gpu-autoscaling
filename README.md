@@ -386,6 +386,17 @@ objects:
   metadata:
     name: ${SERVING_NAME}-sa
     namespace: ${NAMESPACE}
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    annotations:
+      kubernetes.io/service-account.name: ${SERVING_NAME}-sa
+      openshift.io/display-name: default-name
+    labels:
+      opendatahub.io/dashboard: "true"
+    name: default-name-${SERVING_NAME}-sa
+    namespace: ${NAMESPACE}
+  type: kubernetes.io/service-account-token
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: Role
   metadata:
@@ -569,7 +580,7 @@ To simplify accessing the model you can export several variables after the model
 ```
 export SERVING_NAME=foo
 export NAMESPACE=llms
-export TOKEN=$(oc create token --duration=87600h -n ${NAMESPACE} ${SERVING_NAME}-sa)
+export TOKEN=$(oc get secret -n $NAMESPACE default-name-$SERVING_NAME-sa -o go-template='{{ .data.token }}' | base64 -d)
 export ENDPOINT=https://$(oc get route -n istio-system ${SERVING_NAME}-${NAMESPACE} -o go-template='{{ .spec.host }}')
 # For openai / langchain / kai the following are helpful:
 curl -k -w %{certs} $ENDPOINT > ca-cert.pem
