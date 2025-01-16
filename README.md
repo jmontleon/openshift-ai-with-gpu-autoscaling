@@ -638,7 +638,7 @@ To use the newly created model with run_demo.py or vscode extension you will nee
 To configure this for use, you will need to download the certs, so that the self-signed cert is not a problem:
 ```bash
 curl -k -w %{certs} https://kai-test-generation-llms.apps.konveyor-ai.migration.redhat.com > ca-cert.pem
-export export REQUESTS_CA_BUNDLE=$(pwd)/ca-cert.pem
+export REQUESTS_CA_BUNDLE=$(pwd)/ca-cert.pem
 ````
 
 Here we are telling requests to use this ca bundle to validate the SSL cert.
