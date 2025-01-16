@@ -517,6 +517,29 @@ objects:
       - effect: NoSchedule
         key: nvidia.com/gpu
         operator: Exists
+- apiVersion: batch/v1
+  kind: Job
+  metadata:
+    name: ${SERVING_NAME}
+    namepsace: ${NAMESPACE}
+  spec:
+    backoffLimit: 6
+    completions: 1
+    parallelism: 1
+    template:
+      metadata:
+        name: ${SERVING_NAME}
+      spec:
+        containers:
+        - command:
+          - bash
+          - -c
+          - sleep ${TIMEOUT} && oc process deploy-model -p SERVING_NAME=${SERVING_NAME}
+            | oc delete --ignore-not-found=true -f -
+          image: registry.redhat.io/openshift4/ose-cli:latest
+          name: ${SERVING_NAME}
+        restartPolicy: OnFailure
+        serviceAccount: job-runner
 parameters:
   - name: SERVING_NAME
     displayName: Serving Name
@@ -553,6 +576,11 @@ parameters:
     description: Path to model on storage 
     value: Llama-3.1-8B-Instruct
     required: true
+  - description: Time after which the inference service will be deleted
+    displayName: Timeout
+    name: TIMEOUT
+    required: true
+    value: 8h
 ```
 
 This template allows for customizing several settings
