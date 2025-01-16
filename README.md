@@ -21,6 +21,10 @@
     - [Access Model](#access-model)
     - [Simplifying CLI model deployment](#simplifying-cli-model-deployment)
     - [CLI model deployment](#cli-model-deployment)
+    - [Using model with Kai](#using-model-with-kai)
+      - [Using model](#using-model)
+      - [Run Demo Configuration](#run-demo-configuration)
+      - [vscode Configuration](#vscode-configuration)
   - [Optional Configuration](#optional-configuration)
     - [Monitoring](#monitoring)
     - [Alerting](#alerting)
@@ -621,6 +625,64 @@ And to clean up and scale down:
 ```
 oc process deploy-model -p SERVING_NAME=foo -p MODEL_PATH=Llama-3.1-8B-Instruct | oc delete -f -
 ```
+
+### Using Model With Kai
+
+#### Using model
+
+To use the newly created model with run_demo.py or vscode extension you will need to wait for it to deploy completly. Once you do, you should get the full URL of the model. It will look something like `https://kai-test-generation-llms.apps.konveyor-ai.migration.redhat.com/`
+
+> [!NOTE]
+> Here we are using kai-test-generation as the serving name from the deployment template parameter. llms is the namespace that is already set up to be used, and you probably should not change that.
+
+To configure this for use, you will need to download the certs, so that the self-signed cert is not a problem:
+```bash
+curl -k -w %{certs} https://kai-test-generation-llms.apps.konveyor-ai.migration.redhat.com > ca-cert.pem
+export export REQUESTS_CA_BUNDLE=$(pwd)/ca-cert.pem
+````
+
+Here we are telling requests to use this ca bundle to validate the SSL cert.
+
+> [!NOTE]
+> This will invalide EVERY other request made by python to a URL, for example with pip installing
+
+Next, you will need to set the OPENAI_API_KEY
+
+```bash
+export OPENAI_API_KEY=$(oc create token --duration=87600h -n ${NAMESPACE} ${SERVING_NAME}-sa)
+```
+
+##### Run Demo Configuration
+Now you need to update the initalize toml to look like:
+```toml
+[model_provider]
+provider = "ChatOpenAI"
+
+[model_provider.args]
+model = "kai-test-generation"
+base_url = "https://kai-test-generation-llms.apps.konveyor-ai.migration.redhat.com/v1"
+```
+
+Now you should be ready to run the demo to use the created model
+
+##### vscode Configuration
+You will need to update the vscode settings file to change the default model.
+
+[open workspace settings](https://code.visualstudio.com/docs/getstarted/settings#_workspace-settings) to update the model.
+
+Navigate to `Extensions -> Konveyor`
+
+![model settings](images/vscode-workspace-settings.png)
+
+Change Model provider to ChatOpenAI
+
+click the edit in settings.json button for the `Provider Args`
+
+Change the json to look like the below
+
+![Provider Args Updated](images/updated-vscode-providerArgs.png)
+
+You should be good to use vscode now.
 
 ## Optional Configuration
 
