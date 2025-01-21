@@ -378,6 +378,8 @@ curl -k -H "Authorization: Bearer $TOKEN"  -H "Content-Type: application/json" -
 ### Simplifying CLI model deployment
 It is possible to create a template that will simplify model deployment on the CLI
 
+Note that this template incorporate a job pod that auto terminates the model after 8 hours. This can be removed or the timeout adjusted as desired.
+
 ```
 kind: Template
 apiVersion: template.openshift.io/v1
