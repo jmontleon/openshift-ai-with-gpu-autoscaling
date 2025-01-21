@@ -294,7 +294,7 @@ When installation is done we can now access OpenShift AI from the Application me
 ```
 spec:
   annotations:
-    serving.knative.dev/progress-deadline: 45m
+    serving.knative.dev/progress-deadline: 60m
 ```
 - In addition to support Multiple GPUs we'll adjust the container args:
 ```
@@ -449,7 +449,7 @@ objects:
     annotations:
       prometheus.io/path: /metrics
       prometheus.io/port: "8080"
-      serving.knative.dev/progress-deadline: 45m
+      serving.knative.dev/progress-deadline: 60m
     containers:
     - args:
       - --port=8080
@@ -457,6 +457,7 @@ objects:
       - --served-model-name={{.Name}}
       - --distributed-executor-backend=mp
       - --tensor-parallel-size=${GPU_COUNT}
+      - --max_model_len=${MAX_MODEL_LEN}
       command:
       - python
       - -m
@@ -585,6 +586,12 @@ parameters:
     name: TIMEOUT
     required: true
     value: 8h
+  - description: max_model_len setting for VLLM. If this is too high will run out of
+      memory and crash.
+    displayName: max_model_len
+    name: MAX_MODEL_LEN
+    required: true
+    value: "16384"
 ```
 
 This template allows for customizing several settings
