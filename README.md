@@ -588,7 +588,7 @@ parameters:
     name: TIMEOUT
     required: true
     value: 8h
-  - description: max_model_len setting for VLLM. If this is too high will run out of
+  - description: max_model_len setting for VLLM. If this is too high vllm will run out of
       memory and crash.
     displayName: max_model_len
     name: MAX_MODEL_LEN
