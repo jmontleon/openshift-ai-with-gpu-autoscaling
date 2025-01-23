@@ -648,6 +648,7 @@ To configure this for use, you will need to download the certs, so that the self
 ```bash
 curl -k -w %{certs} https://kai-test-generation-llms.apps.konveyor-ai.migration.redhat.com > ca-cert.pem
 export REQUESTS_CA_BUNDLE=$(pwd)/ca-cert.pem
+export SSL_CERT_FILE=$(pwd)/ca-cert.pem
 ````
 
 Here we are telling requests to use this ca bundle to validate the SSL cert.
@@ -675,21 +676,49 @@ base_url = "https://kai-test-generation-llms.apps.konveyor-ai.migration.redhat.c
 Now you should be ready to run the demo to use the created model
 
 ##### vscode Configuration
-You will need to update the vscode settings file to change the default model.
+You will need to update the konveyor GenAI model provider config to change the active model config.
 
-[open workspace settings](https://code.visualstudio.com/docs/getstarted/settings#_workspace-settings) to update the model.
+To open this file use the [command pallete](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette).
 
-Navigate to `Extensions -> Konveyor`
+You will need to select the option `Konveyor: Open the GenAI model provider configuration file`.
 
-![model settings](images/vscode-workspace-settings.png)
+![configuration command selection](images/select_model_config.png)
 
-Change Model provider to ChatOpenAI
+Once you do this, you wil need to update the models with the correct environment vars and configuration and example:
 
-click the edit in settings.json button for the `Provider Args`
+```yaml
+models:
+  OpenAI:
+    environment:
+      OPENAI_API_KEY: "key"
+    provider: "ChatOpenAI"
+    args:
+      model: "gpt-4"
 
-Change the json to look like the below
+  AmazonBedrock:
+    environment:
+      AWS_ACCESS_KEY_ID: "key id"
+      AWS_SECRET_ACCESS_KEY: "secret"
+      AWS_DEFAULT_REGION: "region"
+    provider: "ChatBedrock"
+    args:
+      model_id: "meta.llama3-70b-instruct-v1:0"
 
-![Provider Args Updated](images/updated-vscode-providerArgs.png)
+  openshift-kai-test-generation: &active
+    environment:
+      SSL_CERT_FILE: "<same as SSL_CERT_FILE above>"
+      REQUESTS_CA_BUNDLE: "<same as REQUESTS_CA_BUNDLE above>"
+      OPENAI_API_KEY: "<same as OPENAI_API_KEY above>"
+
+    provider: "ChatOpenAI"
+    args:
+      model: "kai-test-generation"
+      base_url:  "https://kai-test-generation-llms.apps.konveyor-ai.migration.redhat.com/v1"
+
+```
+
+> [!NOTE]
+> Please note the use of the `&active` you must move that from the OpenAI location to the new location, in this case openshift-kai-test-generation.
 
 You should be good to use vscode now.
 
