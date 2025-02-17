@@ -467,6 +467,8 @@ objects:
       env:
       - name: HF_HOME
         value: /tmp/hf_home
+      - name: VLLM_RPC_TIMEOUT
+        value: "180000"
       image: quay.io/modh/vllm@sha256:c86ff1e89c86bc9821b75d7f2bbc170b3c13e3ccf538bf543b1110f23e056316
       name: kserve-container
       ports:
